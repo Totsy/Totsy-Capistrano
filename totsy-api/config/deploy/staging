@@ -1,0 +1,4 @@
+role :app, "web9-dc0"
+
+set :deploy_to, "/var/www/api-staging.totsy.com"
+
