@@ -62,7 +62,7 @@ end
 
 namespace :loadbalancer do
     desc "Disable each of the target deployment servers in haproxy"
-    task :withdraw do
+    task :disable do
         servers = find_servers_for_task(current_task)
         servers.each do |host|
             [ 'main_http', 'main_https' ].each do |backend|
@@ -73,7 +73,14 @@ namespace :loadbalancer do
     end
 
     desc "Enable each of the target deployment servers in haproxy"
-    task :restore do
+    task :enable do
+        servers = find_servers_for_task(current_task)
+        servers.each do |host|
+            [ 'main_http', 'main_https' ].each do |backend|
+                socket = UNIXSocket.new("/var/run/haproxy.sock")
+                socket.puts("enable server #{backend}/#{host}")
+            end
+        end
     end
 end
 
