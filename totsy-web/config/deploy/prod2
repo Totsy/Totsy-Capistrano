@@ -1,10 +1,7 @@
-#
-#role :app, "web6-dc0"
 role :app, "web1-dc0", "web2-dc0", "web3-dc0", "web4-dc0", "web6-dc0"
-set :branch, "master"
-namespace :deploy do
-  task :robot do
-  run "cp -f #{release_path}/robots-prod.txt #{release_path}/robots.txt"
-  end
-end
+
+before "deploy:update_code", "haproxy:disable_nodes"
+
 after "deploy:update_code", "deploy:robot"
+after "deploy:symlink",     "haproxy:enable_nodes"
+

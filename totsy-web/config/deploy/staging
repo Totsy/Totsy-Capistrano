@@ -2,11 +2,3 @@ role :app, "web9-dc0"
 
 set :deploy_to, "/var/www/staging.totsy.com"
 
-namespace :deploy do
-  task :robot do
-    run "cp -f #{release_path}/robots-prod.txt #{release_path}/robots.txt"
-  end   
-end
-
-after "deploy:update_code", "deploy:robot"
-
