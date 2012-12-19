@@ -1,0 +1,7 @@
+role :app, "web1-dc0", "web2-dc0", "web3-dc0", "web4-dc0", "web7-dc0"
+
+before "deploy:update_code", "loadbalancer:disable"
+
+after "deploy:finalize_update", "deploy:robot"
+after "deploy:symlink",         "loadbalancer:enable"
+

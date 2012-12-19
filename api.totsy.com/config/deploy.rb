@@ -1,10 +1,8 @@
-require 'socket' # for haproxy communication
-
-set :stages, %w(production staging backup)
+set :stages, %w(production staging)
 set :default_stage, "staging"
 require 'capistrano/ext/multistage'
 
-set :application, "Totsy-Magento"
+set :application, "Totsy-API"
 set :repository,  "git@github.com:Totsy/#{application}.git"
 
 set :scm, :git
@@ -14,7 +12,9 @@ set :deploy_via, :remote_cache
 
 set :user, "release"
 set :group, "nginx"
-set :deploy_to, "/var/www/www.totsy.com"
+set :deploy_to, "/var/www/api.totsy.com"
+
+set :shared_children, shared_children + [ 'vendor' ]
 
 ssh_options[:keys] = %w(~/.ssh/id_rsa)
 ssh_options[:port] = 22
@@ -22,16 +22,19 @@ ssh_options[:port] = 22
 set :use_sudo, false
 set :normalize_asset_timestamps, false
 
-namespace(:app) do
+namespace :app do
     desc "Perform the final deployment steps of setting up the web application"
+    task :configure do
+        run "mkdir #{release_path}/etc && ln -s /etc/totsy-api/logger.yaml #{release_path}/etc/logger.yaml"
+        run "ln -s #{shared_path}/vendor #{release_path}/vendor"
+        run "cd #{release_path} && composer update"
+        run "cd #{release_path}/doc/wadl && xsltproc totsy_wadl_doc-2006-10.xsl totsy.wadl > index.html"
+    end
+
+    desc "Prepare the deployment directory"
     task :setup do
-        run "cd #{release_path} && tar xkf /usr/share/magento/magento-enterprise-1.11.1.tar.bz2 --strip-components=1"
-	run "mkdir #{release_path}/var && chgrp nginx #{release_path}/var && chmod g+w #{release_path}/var"
-	run "ln -s /srv/cache/var/tmp #{release_path}/var/tmp"
-	run "ln -s /srv/cache/media #{release_path}"
-	run "ln -s /srv/cache/akamai #{release_path}"
-	run "ln -sf /etc/magento/local.xml #{release_path}/app/etc/"
-	run "ln -sf /etc/magento/enterprise.xml #{release_path}/app/etc/"
+        run "chgrp -R nginx #{shared_path}/log"
+        run "chmod -R 775 #{shared_path}/log"
     end
 end
 
@@ -52,11 +55,6 @@ namespace :deploy do
     task :restart do
         run "sudo /etc/init.d/php-fpm restart"
         run "sudo /etc/init.d/nginx restart"
-    end
-
-    desc "Configure the correct robots.txt file for the environment"
-    task :robot do
-        run "cp -f #{release_path}/robots-prod.txt #{release_path}/robots.txt"
     end
 end
 
@@ -84,5 +82,6 @@ namespace :loadbalancer do
     end
 end
 
-after "deploy:update_code", "app:setup"
+after "deploy:update_code", "app:configure"
+after "deploy:setup",       "app:setup"
 

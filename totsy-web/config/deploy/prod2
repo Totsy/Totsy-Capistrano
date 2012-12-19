@@ -1,7 +1,0 @@
-role :app, "web1-dc0", "web2-dc0", "web3-dc0", "web4-dc0", "web6-dc0"
-
-before "deploy:update_code", "haproxy:disable_nodes"
-
-after "deploy:update_code", "deploy:robot"
-after "deploy:symlink",     "haproxy:enable_nodes"
-
