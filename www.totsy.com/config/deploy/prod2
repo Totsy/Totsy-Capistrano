@@ -1,8 +1,10 @@
 role :app, "web1-dc0", "web2-dc0", "web3-dc0", "web4-dc0", "web7-dc0"
 
+before "deploy:update_code" do
+    run_locally "redis-cli flushdb"
+end
+
 before "deploy:update_code", "loadbalancer:disable"
-before "deploy:update_code", "app:flushcache"
 
 after "deploy:symlink", "loadbalancer:enable"
-after "deploy:setup",   "app:setup"
 

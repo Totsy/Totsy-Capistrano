@@ -1,7 +1,29 @@
-role :app, "web1-dc0", "web2-dc0", "web3-dc0", "web4-dc0", "web7-dc0"
+role :alpha, "web0-dc0"
+role :beta,  "web1-dc0", "web2-dc0", "web3-dc0", "web4-dc0", "web7-dc0"
 
-before "deploy:update_code", "loadbalancer:disable"
+namespace :deploy do
+    desc <<-DESC
+      Perform a two-phase deployment by splitting the target servers into \
+      two groups. The first (alpha) group is disabled from the load balancer, updated \
+      and then restored to the load balancer. Immediatlely after, the same \
+      steps are performed on the second (beta) group.
+    DESC
+    task :phased do
+        with_env ("ROLES", "alpha") {
+            loadbalancer.disable
+            update
+            loadbalancer.enable
+        }
 
-after "deploy:finalize_update", "deploy:robot"
-after "deploy:symlink",         "loadbalancer:enable"
+        with_env ("ROLES", "beta") {
+            loadbalancer.disable
+            run_locally "redis-cli flushdb"
+            update
+            loadbalancer.enable
+        }
+
+    end
+end
+
+after "deploy:setup", "app:setup"
 

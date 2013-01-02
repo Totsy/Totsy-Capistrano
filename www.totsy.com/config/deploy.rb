@@ -1,6 +1,6 @@
 require 'socket' # for haproxy communication
 
-set :stages,        %w(prod1 prod2 staging)
+set :stages,        %w(production staging)
 set :default_stage, "staging"
 require 'capistrano/ext/multistage'
 
@@ -34,28 +34,11 @@ namespace(:app) do
 	run "ln -sf /etc/magento/local.xml #{release_path}/app/etc/"
     end
 
-    desc "Flush the full application cache backend"
-    task :flushcache do
-        run_locally "redis-cli flushall"
-    end
-
     desc "Prepare the deployment directory"
     task :setup do
         run "chgrp -R nginx #{shared_path}/*"
         run "chmod -R 775 #{shared_path}/*"
         run "ln -s /srv/share/var/tmp #{shared_path}/var/tmp"
-    end
-
-    namespace :altcache do
-        desc "Change the application configuration to use an alternate cache"
-        task :enable do
-            run "ln -sf /etc/magento/local-alt.xml #{release_path}/app/etc/"
-        end
-
-        desc "Change the application configuration to use the default cache"
-        task :disable do
-            run "ln -sf /etc/magento/local.xml #{release_path}/app/etc/"
-        end
     end
 end
 
@@ -102,30 +85,43 @@ namespace :loadbalancer do
         servers = find_servers
         servers.each do |hostname|
             [ 'main_http_backend', 'main_https_backend' ].each do |backend|
-                socket = UNIXSocket.new("/var/run/haproxy.sock")
-                socket.puts("disable server #{backend}/#{hostname}")
+                begin
+                    socket = UNIXSocket.new("/var/run/haproxy.sock")
+                    socket.puts("disable server #{backend}/#{hostname}")
 
-                result = socket.gets
-                print result unless result == ''
+                    result = socket.gets
+                    print result unless result == ''
+                rescue Error => e
+                    print e
+                end
             end
         end
+
+        sleep 3
     end
 
     desc "Enable each of the target deployment servers in haproxy"
     task :enable do
-        servers = find_servers
+        servers = find_servers_for_current_task
         servers.each do |hostname|
             [ 'main_http_backend', 'main_https_backend' ].each do |backend|
-                socket = UNIXSocket.new("/var/run/haproxy.sock")
-                socket.puts("enable server #{backend}/#{hostname}")
+                begin
+                    socket = UNIXSocket.new("/var/run/haproxy.sock")
+                    socket.puts("enable server #{backend}/#{hostname}")
 
-                result = socket.gets
-                print result unless result == ''
+                    result = socket.gets
+                    print result unless result == ''
+                rescue Error => e
+                    print e
+                end
             end
         end
+
+        sleep 3
     end
 end
 
+after "deploy:setup",		"app:setup"
 after "deploy:update_code",     "app:configure"
 after "deploy:finalize_update", "deploy:robot"
 

@@ -1,5 +1,8 @@
-
 role :app, "web9-dc0"
 
 set :deploy_to, "/var/www/staging.totsy.com"
+
+after "deploy:update_code" do
+    run "redis-cli flushall"
+end
 
