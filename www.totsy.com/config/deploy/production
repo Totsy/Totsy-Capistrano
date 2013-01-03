@@ -9,13 +9,13 @@ namespace :deploy do
       steps are performed on the second (beta) group.
     DESC
     task :phased do
-        with_env ("ROLES", "alpha") {
+        with_env("ROLES", "alpha") {
             loadbalancer.disable
             update
             loadbalancer.enable
         }
 
-        with_env ("ROLES", "beta") {
+        with_env("ROLES", "beta") {
             loadbalancer.disable
             run_locally "redis-cli flushdb"
             update

@@ -102,7 +102,7 @@ namespace :loadbalancer do
 
     desc "Enable each of the target deployment servers in haproxy"
     task :enable do
-        servers = find_servers_for_current_task
+        servers = find_servers
         servers.each do |hostname|
             [ 'main_http_backend', 'main_https_backend' ].each do |backend|
                 begin
