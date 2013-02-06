@@ -17,11 +17,33 @@ namespace :deploy do
 
         with_env("ROLES", "beta") {
             loadbalancer.disable
-            run_locally "redis-cli flushdb"
+            run_locally "redis-cli flushall"
             update
             loadbalancer.enable
         }
 
+    end
+
+    namespace :rollback do
+        desc <<-DESC
+          Perform a two-phase rollback taking the same steps as the two-phase \
+          deployment (see task deploy:phased).
+        DESC
+        task :phased do
+            with_env("ROLES", "alpha") {
+                loadbalancer.disable
+                rollback
+                loadbalancer.enable
+            }
+
+            with_env("ROLES", "beta") {
+                loadbalancer.disable
+                run_locally "redis-cli flushall"
+                rollback
+                loadbalancer.enable
+            }
+
+        end
     end
 end
 

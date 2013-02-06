@@ -1,7 +1,0 @@
-role :app, "web0-dc0"
-
-before "deploy:update_code", "loadbalancer:disable"
-
-# keep the newly-deployed server out of the load balancer
-#after "deploy:symlink",     "loadbalancer:enable"
-

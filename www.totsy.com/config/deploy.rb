@@ -88,11 +88,9 @@ namespace :loadbalancer do
                 begin
                     socket = UNIXSocket.new("/var/run/haproxy.sock")
                     socket.puts("disable server #{backend}/#{hostname}")
-
-                    result = socket.gets
-                    print result unless result == ''
-                rescue Error => e
-                    print e
+                    socket.close
+                rescue => e
+                    logger.important e.message
                 end
             end
         end
@@ -108,17 +106,20 @@ namespace :loadbalancer do
                 begin
                     socket = UNIXSocket.new("/var/run/haproxy.sock")
                     socket.puts("enable server #{backend}/#{hostname}")
-
-                    result = socket.gets
-                    print result unless result == ''
-                rescue Error => e
-                    print e
+                    socket.close
+                rescue => e
+                    logger.important e.message
                 end
             end
         end
 
         sleep 3
     end
+end
+
+after "deploy:cleanup" do
+    repository_cache = File.join(shared_path, "cached-copy")
+    run "cd #{repository_cache} && git remote prune origin"
 end
 
 after "deploy:setup",		"app:setup"
