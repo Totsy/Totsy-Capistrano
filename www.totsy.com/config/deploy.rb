@@ -1,4 +1,5 @@
 require 'socket' # for haproxy communication
+require 'hipchat/capistrano' # for hipchat integration
 
 set :stages,        %w(production staging)
 set :default_stage, "staging"
@@ -6,11 +7,13 @@ require 'capistrano/ext/multistage'
 
 set :application, "Totsy-Magento"
 set :repository,  "git@github.com:Totsy/#{application}.git"
+#set :repository,  "https://totsy-release:thematr1x@github.com/Totsy/#{application}.git"
 
 set :scm,          :git
 set :scm_verbose,  true
 set :scm_username, "totsy-release"
 set :deploy_via,   :remote_cache
+#set :deploy_via,   :checkout
 
 set :user,      "release"
 set :group,     "nginx"
@@ -23,6 +26,11 @@ set :shared_children, shared_children + [ 'var' ]
 
 set :use_sudo, false
 set :normalize_asset_timestamps, false
+
+# hipchat integration options
+set :hipchat_token, "4d732430a53670261981621866b3a3"
+set :hipchat_room_name, "Tech Stream"
+set :hipchat_announce, false
 
 namespace(:app) do
     desc "Perform the final deployment steps of setting up the web application"
@@ -90,7 +98,7 @@ namespace :loadbalancer do
                     socket.puts("disable server #{backend}/#{hostname}")
                     socket.close
                 rescue => e
-                    logger.important e.message
+                    logger.important "disable server #{backend}/#{hostname}: #{e.message}"
                 end
             end
         end
@@ -108,7 +116,7 @@ namespace :loadbalancer do
                     socket.puts("enable server #{backend}/#{hostname}")
                     socket.close
                 rescue => e
-                    logger.important e.message
+                    logger.important "enable server #{backend}/#{hostname}: #{e.message}"
                 end
             end
         end
