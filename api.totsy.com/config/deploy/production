@@ -1,1 +1,49 @@
-role :app, "web0-dc0", "web1-dc0", "web2-dc0", "web3-dc0", "web4-dc0"
+role :alpha, "web0-dc0"
+role :beta,  "web1-dc0", "web2-dc0", "web3-dc0", "web4-dc0"
+
+namespace :deploy do
+    desc <<-DESC
+      Perform a two-phase deployment by splitting the target servers into \
+      two groups. The first (alpha) group is disabled from the load balancer, updated \
+      and then restored to the load balancer. Immediatlely after, the same \
+      steps are performed on the second (beta) group.
+    DESC
+    task :phased do
+        with_env("ROLES", "alpha") {
+            loadbalancer.disable
+            update
+            loadbalancer.enable
+        }
+
+        with_env("ROLES", "beta") {
+            loadbalancer.disable
+            update
+            loadbalancer.enable
+        }
+
+    end
+
+    namespace :rollback do
+        desc <<-DESC
+          Perform a two-phase rollback taking the same steps as the two-phase \
+          deployment (see task deploy:phased).
+        DESC
+        task :phased do
+            with_env("ROLES", "alpha") {
+                loadbalancer.disable
+                rollback
+                loadbalancer.enable
+            }
+
+            with_env("ROLES", "beta") {
+                loadbalancer.disable
+                rollback
+                loadbalancer.enable
+            }
+
+        end
+    end
+end
+
+after "deploy:setup", "app:setup"
+
