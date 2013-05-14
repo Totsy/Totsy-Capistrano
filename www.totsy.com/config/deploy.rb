@@ -1,4 +1,5 @@
 require 'socket' # for haproxy communication
+require 'varnishclient' # for varnish communication
 require 'hipchat/capistrano' # for hipchat integration
 
 set :stages,        %w(production staging)
@@ -28,9 +29,10 @@ set :use_sudo, false
 set :normalize_asset_timestamps, false
 
 # hipchat integration options
-set :hipchat_token, "4d732430a53670261981621866b3a3"
+set :hipchat_token, "5b6ea132c1fa2d487ac57c0f8b4e9f"
 set :hipchat_room_name, "Tech Stream"
 set :hipchat_announce, false
+set :hipchat_human, "Release masters"
 
 namespace(:app) do
     desc "Perform the final deployment steps of setting up the web application"
@@ -40,6 +42,7 @@ namespace(:app) do
 	run "ln -s /srv/share/media #{release_path}"
 	run "ln -s /srv/share/akamai #{release_path}"
 	run "ln -sf /etc/magento/local.xml #{release_path}/app/etc/"
+	run "ln -sf /etc/magento/litle_SDK_config.ini #{release_path}/app/code/community/Litle/LitleSDK/"
     end
 
     desc "Prepare the deployment directory"
@@ -91,37 +94,53 @@ namespace :loadbalancer do
     desc "Disable each of the target deployment servers in haproxy"
     task :disable do
         servers = find_servers
+
+        client = VarnishClient.new
+        client.connect 'infra2.totsy.net', 6082
+
         servers.each do |hostname|
-            [ 'main_http_backend', 'main_https_backend' ].each do |backend|
-                begin
-                    socket = UNIXSocket.new("/var/run/haproxy.sock")
-                    socket.puts("disable server #{backend}/#{hostname}")
-                    socket.close
-                rescue => e
-                    logger.important "disable server #{backend}/#{hostname}: #{e.message}"
-                end
+            hostname = hostname.to_s
+            begin
+                # disable host in varnish
+                hostprefix = hostname[0, hostname.length - 4]
+                client.command "backend.set_health #{hostprefix} sick"
+
+                # disable host in haproxy
+                socket = UNIXSocket.new("/var/run/haproxy.sock")
+                socket.puts("disable server main_https_backend/#{hostname}")
+                socket.close
+            rescue => e
+                logger.important "Error while disabling server #{hostname}: #{e.message}"
             end
         end
 
-        sleep 3
+        client.disconnect
     end
 
     desc "Enable each of the target deployment servers in haproxy"
     task :enable do
         servers = find_servers
+
+        client = VarnishClient.new
+        client.connect 'infra2.totsy.net', 6082
+
         servers.each do |hostname|
-            [ 'main_http_backend', 'main_https_backend' ].each do |backend|
-                begin
-                    socket = UNIXSocket.new("/var/run/haproxy.sock")
-                    socket.puts("enable server #{backend}/#{hostname}")
-                    socket.close
-                rescue => e
-                    logger.important "enable server #{backend}/#{hostname}: #{e.message}"
-                end
+            hostname = hostname.to_s
+            begin
+                # enable host in varnish
+                hostprefix = hostname[0, hostname.length - 4]
+                client.command "backend.set_health #{hostprefix} healthy"
+
+                # disable host in haproxy
+                socket = UNIXSocket.new("/var/run/haproxy.sock")
+                socket.puts("enable server main_https_backend/#{hostname}")
+                socket.close
+            rescue => e
+                logger.important "Error while disabling server #{hostname}: #{e.message}"
             end
         end
 
-        sleep 3
+        client.disconnect
     end
 end
 
