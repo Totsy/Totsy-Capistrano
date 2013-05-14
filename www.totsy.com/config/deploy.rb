@@ -32,7 +32,7 @@ set :normalize_asset_timestamps, false
 set :hipchat_token, "5b6ea132c1fa2d487ac57c0f8b4e9f"
 set :hipchat_room_name, "Tech Stream"
 set :hipchat_announce, false
-set :hipchat_human, "Release masters"
+set :hipchat_human, "A release master"
 
 namespace(:app) do
     desc "Perform the final deployment steps of setting up the web application"
